@@ -31,7 +31,6 @@ def create_aqi_stats_df(df):
 
 def create_monthly_per_year_avg_aqi_df(df):
     monthly_avg_aqi_df = df.resample(rule='M', on='date_time').agg({
-        "annually_period": "first",
         "pm2_5": "mean",
         "pm10": "mean"
     })
@@ -151,14 +150,16 @@ with st.sidebar:
     st.caption("Filter Data Berdasarkan:")
     period = st.selectbox(
         label="Pilih Periode",
-        options=["Seluruh Periode", "Rentang Waktu Tertentu", "Tahunan"],
+        options=["Seluruh Periode (2013-2017)", "Rentang Waktu Tertentu", "Tahunan"],
     )
-    if period == "Seluruh Periode":
+    if period == "Seluruh Periode (2013-2017)":
+        annual_periods = ["", ""]
         min_date = all_df["date_time"].min()
         max_date = all_df["date_time"].max()
         main_df = all_df[(all_df["date_time"] >= min_date) &
                          (all_df["date_time"] <= max_date)]
     elif period == "Rentang Waktu Tertentu":
+        annual_periods = ["", ""]
         selected_date_range = st.date_input(
             label="Pilih rentang waktu",
             min_value=min_date,
@@ -174,6 +175,7 @@ with st.sidebar:
             main_df = all_df[(all_df["date_time"] >= min_date)
                              & (all_df["date_time"] <= max_date)]
     else:
+        annual_periods = []
         for i in range(annual_period_count):
             period = st.checkbox(set_checkbox_var(
                 i).replace("(", "").replace(")", ""), key=i+9)
@@ -189,7 +191,6 @@ with st.sidebar:
                 annual_periods)-1].split(" - ")[1].replace(")", "")
             main_df = all_df[all_df["annually_period"].astype(
                 str).str.contains("|".join(annual_periods))]
-        annual_periods = []
 
 st.title("Air Quality Dashboard")
 st.header("Air Quality Index in Districs of Tiongkok")
@@ -202,7 +203,7 @@ with pm10_metrics:
     st.markdown("<h3 style='text-align: center;'>PM10 (μg/m³)</h3>",
                 unsafe_allow_html=True)
 with pm2_5_metrics:
-    min_pm2_5_col, avg_pm2_5_col, max_pm2_5_col = st.columns(3)
+    avg_pm2_5_col, min_pm2_5_col, max_pm2_5_col = st.columns(3)
     with avg_pm2_5_col:
         avg_aqi_by_pm2_5 = create_aqi_stats_df(
             main_df).pm2_5_stats["mean"].mean()
@@ -216,7 +217,7 @@ with pm2_5_metrics:
             main_df).pm2_5_stats["max"].max()
         st.metric("Max", value=round(max_aqi_by_pm2_5, 1))
 with pm10_metrics:
-    min_pm10_col, max_pm10_col, avg_pm10_col = st.columns(3)
+    avg_pm10_col, min_pm10_col, max_pm10_col = st.columns(3)
     with avg_pm10_col:
         avg_aqi_by_pm10 = create_aqi_stats_df(
             main_df).pm10_stats["mean"].mean()
@@ -238,8 +239,12 @@ selected_period = "D"
 date_plt_title = "per-Day"
 
 def plot_avg_aqi_pm2_5(ax, period):
+    if period == "M" and len(annual_periods) < 2:
+        x_axis = create_monthly_per_year_avg_aqi_df(main_df)['month']
+    else:
+        x_axis = create_avg_aqi_df(main_df, period)['date_time']
     ax.plot(
-        create_avg_aqi_df(main_df, period)['date_time'],
+        x_axis,
         create_avg_aqi_df(main_df, period)['avg_pm2_5'],
         linewidth=2,
         marker='o',
@@ -248,8 +253,12 @@ def plot_avg_aqi_pm2_5(ax, period):
     )
 
 def plot_avg_aqi_pm10(ax, period):
+    if period == "M" and len(annual_periods) < 2:
+        x_axis = create_monthly_per_year_avg_aqi_df(main_df)['month']
+    else:
+        x_axis = create_avg_aqi_df(main_df, period)['date_time']
     ax.plot(
-        create_avg_aqi_df(main_df, period)['date_time'],
+        x_axis,
         create_avg_aqi_df(main_df, period)['avg_pm10'],
         linewidth=2,
         marker='o',
@@ -275,7 +284,7 @@ def plot_avg_aqi(period):
     else:
         concatenation = ""
     plt.title(
-        f"Number of {pm2_5_var}{concatenation}{pm10_var} {date_plt_title} (2013-2017)")
+        f"Average Number of {pm2_5_var}{concatenation}{pm10_var} {date_plt_title}")
     st.pyplot(fig)
 
 with daily_tab:
@@ -356,3 +365,7 @@ with semester_tab:
             st.warning("Silakan pilih minimal satu variabel untuk ditampilkan")
     else:
         st.warning("Silakan pilih rentang waktu pada semua periode.")
+
+st.subheader("Best and Worst AQI by PM2.5 Parameter")
+
+st.subheader("Best and Worst AQI by PM10 Parameter")
