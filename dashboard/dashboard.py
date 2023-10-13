@@ -44,7 +44,7 @@ def create_monthly_per_year_avg_aqi_df(df):
     return monthly_avg_aqi_df
 
 def create_avg_aqi_by_station_df(df):
-    avg_aqi_by_station_df = df.groupby(by="station_id").agg({
+    avg_aqi_by_station_df = df.groupby(by="station").agg({
         "pm2_5": "mean",
         "pm10": "mean"
     }).rename(columns={
@@ -85,10 +85,7 @@ def create_hourly_avg_aqi_df(df):
         "pm2_5": "mean",
         "pm10": "mean"
     }).reset_index()
-    hourly_avg_aqi_df.rename(columns={
-        "pm2_5": "avg_pm2_5",
-        "pm10": "avg_pm10"
-    }, inplace=True)
+    hourly_avg_aqi_df["hour"] = hourly_avg_aqi_df["hour"].astype(str) + ":00"
     return hourly_avg_aqi_df
 
 def create_aqi_by_pm2_5_df(df):
@@ -150,7 +147,8 @@ with st.sidebar:
     st.caption("Filter Data Berdasarkan:")
     period = st.selectbox(
         label="Pilih Periode",
-        options=["Seluruh Periode (2013-2017)", "Rentang Waktu Tertentu", "Tahunan"],
+        options=["Seluruh Periode (2013-2017)",
+                 "Rentang Waktu Tertentu", "Tahunan"],
     )
     if period == "Seluruh Periode (2013-2017)":
         annual_periods = ["", ""]
@@ -193,7 +191,7 @@ with st.sidebar:
                 str).str.contains("|".join(annual_periods))]
 
 st.title("Air Quality Dashboard")
-st.header("Air Quality Index in Districs of Tiongkok")
+st.header("Air Quality Index (AQI) in Districs of Tiongkok")
 
 pm2_5_metrics, pm10_metrics = st.columns(2)
 with pm2_5_metrics:
@@ -366,6 +364,174 @@ with semester_tab:
     else:
         st.warning("Silakan pilih rentang waktu pada semua periode.")
 
-st.subheader("Best and Worst AQI by PM2.5 Parameter")
+st.subheader("Best & Worst AQI in Tiongkok Districs")
+st.markdown("* #### Best & Worst AQI by Average of PM2.5 Parameter")
+colors = ["darkorange", "lightgrey", "lightgrey",
+            "lightgrey", "lightgrey", "green"]
+if main_df.empty:
+    st.warning("Tidak ada data untuk ditampilkan.")
+else:
+    fig, ax = plt.subplots(nrows=1, ncols=2, figsize=(20, 8))
+    sns.barplot(
+        x="avg_pm2_5",
+        y="station",
+        data=create_avg_aqi_by_station_df(main_df).sort_values("avg_pm2_5", ascending=False).head(), palette=colors, ax=ax[0]
+    )
+    ax[0].set_title("Worst AQI by PM2.5", fontsize=20)
+    ax[0].set_xlabel("Concentration (μg/m³)", fontsize=16)
+    ax[0].set_ylabel(None)
+    ax[0].tick_params(labelsize=15)
+    sns.barplot(
+        x="avg_pm2_5",
+        y="station",
+        data=create_avg_aqi_by_station_df(main_df).sort_values(by="avg_pm2_5").head(), palette=reversed(colors), ax=ax[1]
+    )
+    ax[1].set_title("Best AQI by PM2.5", fontsize=20)
+    ax[1].set_xlabel("Concentration (μg/m³)", fontsize=16)
+    ax[1].invert_xaxis()
+    ax[1].yaxis.set_label_position("right")
+    ax[1].yaxis.tick_right()
+    ax[1].set_ylabel(None)
+    ax[1].tick_params(labelsize=15)
+    plt.suptitle("Worst and Best AQI by PM2.5", fontsize=24)
+    st.pyplot(fig)
 
-st.subheader("Best and Worst AQI by PM10 Parameter")
+st.markdown("* #### Best & Worst AQI by Average of PM10 Parameter")
+if main_df.empty:
+    st.warning("Tidak ada data untuk ditampilkan.")
+else:
+    fig, ax = plt.subplots(nrows=1, ncols=2, figsize=(20, 8))
+    sns.barplot(
+        x="avg_pm10",
+        y="station",
+        data=create_avg_aqi_by_station_df(main_df).sort_values("avg_pm10", ascending=False).head(), palette=colors, ax=ax[0]
+    )
+    ax[0].set_title("Worst AQI by PM10", fontsize=20)
+    ax[0].set_xlabel("Concentration (μg/m³)", fontsize=16)
+    ax[0].set_ylabel(None)
+    ax[0].tick_params(labelsize=15)
+    sns.barplot(
+        x="avg_pm10",
+        y="station",
+        data=create_avg_aqi_by_station_df(main_df).sort_values(by="avg_pm10").head(), palette=reversed(colors), ax=ax[1]
+    )
+    ax[1].set_title("Best AQI by PM10", fontsize=20)
+    ax[1].set_xlabel("Concentration (μg/m³)", fontsize=16)
+    ax[1].invert_xaxis()
+    ax[1].yaxis.set_label_position("right")
+    ax[1].yaxis.tick_right()
+    ax[1].set_ylabel(None)
+    ax[1].tick_params(labelsize=15)
+    plt.suptitle("Worst and Best AQI by PM10", fontsize=24)
+    st.pyplot(fig)
+
+st.subheader("Best & Worst Time AQI by PM2.5 & PM10")
+st.markdown("* #### Best & Worst AQI Time per-Day")
+def plot_daily_avg_aqi():
+    if main_df.empty:
+        st.warning("Tidak ada data untuk ditampilkan.")
+        return
+    fig, ax = plt.subplots(figsize=(10, 7))
+    plt.grid(zorder=0)
+    plt.ylabel("Concentration (μg/m³)")
+    if pm2_5_var == "PM2.5":
+        ax.plot(
+            create_daily_avg_aqi_df(main_df)['day'],
+            create_daily_avg_aqi_df(main_df)['avg_pm2_5'],
+            linewidth=2,
+            marker='o',
+            label='PM2.5',
+            color='brown')
+    if pm10_var == "PM10":
+        ax.plot(
+            create_daily_avg_aqi_df(main_df)['day'],
+            create_daily_avg_aqi_df(main_df)['avg_pm10'],
+            linewidth=2,
+            marker='o',
+            label='PM10',
+            color='orange')
+    plt.legend()
+    concatenation = ""
+    if pm2_5_var == "PM2.5" and pm10_var == "PM10":
+        concatenation = " and "
+    else:
+        concatenation = ""
+    plt.title(
+        f"Average Number of {pm2_5_var}{concatenation}{pm10_var} per-Day")
+    st.pyplot(fig)
+
+daily_date_periods = pd.period_range(
+        str(start_date), str(end_date), freq="D")
+if len(daily_date_periods) > 6:
+    pm2_5_col, pm10_col = st.columns(2)
+    with pm2_5_col:
+        is_pm2_5 = st.checkbox("PM2.5", value=True, key=14)
+    with pm10_col:
+        is_pm10 = st.checkbox("PM10", value=True, key=15)
+    if is_pm2_5 or is_pm10:
+        pm2_5_var = "PM2.5" if is_pm2_5 else ""
+        pm10_var = "PM10" if is_pm10 else ""
+        plot_daily_avg_aqi()
+    else:
+        st.warning("Silakan pilih minimal satu variabel untuk ditampilkan")
+else:
+    st.warning("Silakan pilih rentang waktu minimal seminggu.")
+
+st.markdown("* #### Best & Worst AQI Time by per-Hour")
+def plot_hourly_avg_aqi():
+    if main_df.empty:
+        st.warning("Tidak ada data untuk ditampilkan.")
+        return
+    fig, ax = plt.subplots(figsize=(10, 7))
+    plt.grid(zorder=0)
+    plt.ylabel("Concentration (μg/m³)")
+    plt.xticks(rotation=45)
+    if pm2_5_var == "PM2.5":
+        ax.plot(
+            create_hourly_avg_aqi_df(main_df)['hour'],
+            create_hourly_avg_aqi_df(main_df)['pm2_5'],
+            linewidth=2,
+            marker='o',
+            label='PM2.5',
+            color='brown')
+    if pm10_var == "PM10":
+        ax.plot(
+            create_hourly_avg_aqi_df(main_df)['hour'],
+            create_hourly_avg_aqi_df(main_df)['pm10'],
+            linewidth=2,
+            marker='o',
+            label='PM10',
+            color='orange')
+    plt.legend()
+    concatenation = ""
+    if pm2_5_var == "PM2.5" and pm10_var == "PM10":
+        concatenation = " and "
+    else:
+        concatenation = ""
+    plt.title(
+        f"Average Number of {pm2_5_var}{concatenation}{pm10_var} per-Hour")
+    st.pyplot(fig)
+
+daily_date_periods = pd.period_range(
+        str(start_date), str(end_date), freq="D")
+if len(daily_date_periods) > 0:
+    pm2_5_col, pm10_col = st.columns(2)
+    with pm2_5_col:
+        is_pm2_5 = st.checkbox("PM2.5", value=True, key=16)
+    with pm10_col:
+        is_pm10 = st.checkbox("PM10", value=True, key=17)
+    if is_pm2_5 or is_pm10:
+        pm2_5_var = "PM2.5" if is_pm2_5 else ""
+        pm10_var = "PM10" if is_pm10 else ""
+        plot_hourly_avg_aqi()
+    else:
+        st.warning("Silakan pilih minimal satu variabel untuk ditampilkan")
+else:
+    st.warning("Silakan pilih rentang waktu minimal satu hari.")
+
+st.subheader("AQI Demographics")
+st.markdown("* #### PM2.5 Demographic")
+
+st.markdown("* #### PM10 Demographic")
+
+st.subheader("PM2.5, PM10, SO₂, NO₂, and CO Concentration")
