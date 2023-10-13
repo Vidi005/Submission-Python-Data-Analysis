@@ -1,3 +1,4 @@
+from datetime import timedelta
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -133,17 +134,18 @@ def create_agg_df(df, period):
     }, inplace=True)
     return agg_df
 
-def set_checkbox_var(position): return str(all_df.groupby(by="annually_period")["annually_period"].nunique().index[position])
+def set_checkbox_var(position): return str(all_df.groupby(
+    by="annually_period")["annually_period"].nunique().index[position])
 
 all_df = pd.read_csv("dashboard/main_data.csv")
-print(all_df)
-
 all_df["date_time"] = pd.to_datetime(all_df["date_time"])
 
 min_date = all_df["date_time"].min()
 max_date = all_df["date_time"].max()
-annual_period = all_df["annually_period"][0]
+annual_periods = []
 annual_period_count = all_df["annually_period"].nunique()
+start_date = min_date
+end_date = max_date
 
 with st.sidebar:
     st.caption("Filter Data Berdasarkan:")
@@ -176,49 +178,48 @@ with st.sidebar:
             period = st.checkbox(set_checkbox_var(
                 i).replace("(", "").replace(")", ""), key=i+9)
             if period:
-                annual_period = set_checkbox_var(i)
-            else:
-                annual_period = str(min_date or max_date)
-        main_df = all_df[all_df["date_time"].astype(str).str.contains(annual_period)]
-        # period1 = st.checkbox("2013-03-01 - 2014-02-28")
-        # if period1:
-        #     annual_period = "(2013-03-01 - 2014-02-28)"
-        # period2 = st.checkbox("2014-03-01 - 2015-02-28")
-        # if period2:
-        #     annual_period = "(2014-03-01 - 2015-02-28)"
-        # period3 = st.checkbox("2015-03-01 - 2016-02-29")
-        # if period3:
-        #     annual_period = "(2015-03-01 - 2016-02-29)"
-        # period4 = st.checkbox("2016-03-01 - 2017-02-28")
-        # if period4:
-        #     annual_period = "(2016-03-01 - 2017-02-28)"
-        # period5 = st.checkbox("2017-03-01 - 2018-02-28")
-
-# main_df = all_df[(all_df["date_time"] >= start_date) & (all_df["date_time"] <= end_date)]
+                annual_periods.append(set_checkbox_var(i))
+        if annual_periods == []:
+            main_df = all_df[all_df["annually_period"].astype(
+                str) == ""]
+            st.warning("Silahkan pilih minimal satu periode tahunan.")
+        else:
+            start_date = annual_periods[0].split(" - ")[0].replace("(", "")
+            end_date = annual_periods[len(
+                annual_periods)-1].split(" - ")[1].replace(")", "")
+            main_df = all_df[all_df["annually_period"].astype(
+                str).str.contains("|".join(annual_periods))]
+        annual_periods = []
 
 st.title("Air Quality Dashboard")
 st.header("Air Quality Index in Districs of Tiongkok")
 
 pm2_5_metrics, pm10_metrics = st.columns(2)
 with pm2_5_metrics:
-    st.markdown("<h3 style='text-align: center;'>PM2.5 (μg/m³)</h3>", unsafe_allow_html=True)
+    st.markdown("<h3 style='text-align: center;'>PM2.5 (μg/m³)</h3>",
+                unsafe_allow_html=True)
 with pm10_metrics:
-    st.markdown("<h3 style='text-align: center;'>PM10 (μg/m³)</h3>", unsafe_allow_html=True)
+    st.markdown("<h3 style='text-align: center;'>PM10 (μg/m³)</h3>",
+                unsafe_allow_html=True)
 with pm2_5_metrics:
     min_pm2_5_col, avg_pm2_5_col, max_pm2_5_col = st.columns(3)
     with avg_pm2_5_col:
-        avg_aqi_by_pm2_5 = create_aqi_stats_df(main_df).pm2_5_stats["mean"].mean()
+        avg_aqi_by_pm2_5 = create_aqi_stats_df(
+            main_df).pm2_5_stats["mean"].mean()
         st.metric("Average", value=round(avg_aqi_by_pm2_5, 1))
     with min_pm2_5_col:
-        min_aqi_by_pm2_5 = create_aqi_stats_df(main_df).pm2_5_stats["min"].min()
+        min_aqi_by_pm2_5 = create_aqi_stats_df(
+            main_df).pm2_5_stats["min"].min()
         st.metric("Min", value=round(min_aqi_by_pm2_5, 1))
     with max_pm2_5_col:
-        max_aqi_by_pm2_5 = create_aqi_stats_df(main_df).pm2_5_stats["max"].max()
+        max_aqi_by_pm2_5 = create_aqi_stats_df(
+            main_df).pm2_5_stats["max"].max()
         st.metric("Max", value=round(max_aqi_by_pm2_5, 1))
 with pm10_metrics:
     min_pm10_col, max_pm10_col, avg_pm10_col = st.columns(3)
     with avg_pm10_col:
-        avg_aqi_by_pm10 = create_aqi_stats_df(main_df).pm10_stats["mean"].mean()
+        avg_aqi_by_pm10 = create_aqi_stats_df(
+            main_df).pm10_stats["mean"].mean()
         st.metric("Average", value=round(avg_aqi_by_pm10, 1))
     with min_pm10_col:
         min_aqi_by_pm10 = create_aqi_stats_df(main_df).pm10_stats["min"].min()
@@ -234,6 +235,7 @@ daily_tab, monthly_tab, quarterly_tab, semester_tab = st.tabs(
 pm2_5_var = "PM2.5"
 pm10_var = "PM10"
 selected_period = "D"
+date_plt_title = "per-Day"
 
 def plot_avg_aqi_pm2_5(ax, period):
     ax.plot(
@@ -256,6 +258,9 @@ def plot_avg_aqi_pm10(ax, period):
     )
 
 def plot_avg_aqi(period):
+    if main_df.empty:
+        st.warning("Tidak ada data untuk ditampilkan.")
+        return
     fig, ax = plt.subplots(figsize=(10, 7))
     plt.grid(zorder=0)
     plt.ylabel("Concentration (μg/m³)")
@@ -269,62 +274,85 @@ def plot_avg_aqi(period):
         concatenation = " and "
     else:
         concatenation = ""
-    plt.title(f"Number of {pm2_5_var}{concatenation}{pm10_var} (2013-2017)")
+    plt.title(
+        f"Number of {pm2_5_var}{concatenation}{pm10_var} {date_plt_title} (2013-2017)")
     st.pyplot(fig)
 
 with daily_tab:
-    st.subheader("Daily")
-    selected_period = "D"
-    pm2_5_col, pm10_col = st.columns(2)
-    with pm2_5_col:
-        is_pm2_5 = st.checkbox("PM2.5", value=True, key=1)
-    with pm10_col:
-        is_pm10 = st.checkbox("PM10", value=True, key=2)
-    if is_pm2_5 or is_pm10:
-        pm2_5_var = "PM2.5" if is_pm2_5 else ""
-        pm10_var = "PM10" if is_pm10 else ""
-        plot_avg_aqi(selected_period)
+    daily_date_periods = pd.period_range(
+        str(start_date), str(end_date), freq="D")
+    if len(daily_date_periods) > 6:
+        st.subheader("Daily")
+        selected_period = "D"
+        date_plt_title = "per-Day"
+        pm2_5_col, pm10_col = st.columns(2)
+        with pm2_5_col:
+            is_pm2_5 = st.checkbox("PM2.5", value=True, key=1)
+        with pm10_col:
+            is_pm10 = st.checkbox("PM10", value=True, key=2)
+        if is_pm2_5 or is_pm10:
+            pm2_5_var = "PM2.5" if is_pm2_5 else ""
+            pm10_var = "PM10" if is_pm10 else ""
+            plot_avg_aqi(selected_period)
+        else:
+            st.warning("Silakan pilih minimal satu variabel untuk ditampilkan")
     else:
-        st.warning("Silakan pilih minimal satu variabel untuk ditampilkan")
+        st.warning("Silakan pilih rentang waktu minimal satu minggu.")
 with monthly_tab:
-    st.subheader("Monthly")
-    selected_period = "M"
-    pm2_5_col, pm10_col = st.columns(2)
-    with pm2_5_col:
-        is_pm2_5 = st.checkbox("PM2.5", value=True, key=3)
-    with pm10_col:
-        is_pm10 = st.checkbox("PM10", value=True, key=4)
-    if is_pm2_5 or is_pm10:
-        pm2_5_var = "PM2.5" if is_pm2_5 else ""
-        pm10_var = "PM10" if is_pm10 else ""
-        plot_avg_aqi(selected_period)
+    monthly_date_periods = pd.period_range(
+        str(start_date), str(end_date), freq="M")
+    if len(monthly_date_periods) > 3:
+        st.subheader("Monthly")
+        selected_period = "M"
+        date_plt_title = "per-Month"
+        pm2_5_col, pm10_col = st.columns(2)
+        with pm2_5_col:
+            is_pm2_5 = st.checkbox("PM2.5", value=True, key=3)
+        with pm10_col:
+            is_pm10 = st.checkbox("PM10", value=True, key=4)
+        if is_pm2_5 or is_pm10:
+            pm2_5_var = "PM2.5" if is_pm2_5 else ""
+            pm10_var = "PM10" if is_pm10 else ""
+            plot_avg_aqi(selected_period)
+        else:
+            st.warning("Silakan pilih minimal satu variabel untuk ditampilkan")
     else:
-        st.warning("Silakan pilih minimal satu variabel untuk ditampilkan")
+        st.warning("Silakan pilih rentang waktu minimal satu caturwulan.")
 with quarterly_tab:
-    st.subheader("Quarterly")
-    selected_period = "3M"
-    pm2_5_col, pm10_col = st.columns(2)
-    with pm2_5_col:
-        is_pm2_5 = st.checkbox("PM2.5", value=True, key=5)
-    with pm10_col:
-        is_pm10 = st.checkbox("PM10", value=True, key=6)
-    if is_pm2_5 or is_pm10:
-        pm2_5_var = "PM2.5" if is_pm2_5 else ""
-        pm10_var = "PM10" if is_pm10 else ""
-        plot_avg_aqi(selected_period)
+    quarterly_date_periods = pd.period_range(
+        str(start_date), str(end_date), freq="Q")
+    if len(quarterly_date_periods) > 3:
+        st.subheader("Quarterly")
+        selected_period = "Q"
+        date_plt_title = "per-Quarter"
+        pm2_5_col, pm10_col = st.columns(2)
+        with pm2_5_col:
+            is_pm2_5 = st.checkbox("PM2.5", value=True, key=5)
+        with pm10_col:
+            is_pm10 = st.checkbox("PM10", value=True, key=6)
+        if is_pm2_5 or is_pm10:
+            pm2_5_var = "PM2.5" if is_pm2_5 else ""
+            pm10_var = "PM10" if is_pm10 else ""
+            plot_avg_aqi(selected_period)
+        else:
+            st.warning("Silakan pilih minimal satu variabel untuk ditampilkan")
     else:
-        st.warning("Silakan pilih minimal satu variabel untuk ditampilkan")
+        st.warning("Silakan pilih rentang waktu minimal satu tahun.")
 with semester_tab:
-    st.subheader("Semester")
-    selected_period = "6M"
-    pm2_5_col, pm10_col = st.columns(2)
-    with pm2_5_col:
-        is_pm2_5 = st.checkbox("PM2.5", value=True, key=7)
-    with pm10_col:
-        is_pm10 = st.checkbox("PM10", value=True, key=8)
-    if is_pm2_5 or is_pm10:
-        pm2_5_var = "PM2.5" if is_pm2_5 else ""
-        pm10_var = "PM10" if is_pm10 else ""
-        plot_avg_aqi(selected_period)
+    if pd.to_datetime(end_date) - pd.to_datetime(start_date) >= max_date - min_date - timedelta(days=1):
+        st.subheader("Semester")
+        selected_period = "6M"
+        date_plt_title = "per-Semester"
+        pm2_5_col, pm10_col = st.columns(2)
+        with pm2_5_col:
+            is_pm2_5 = st.checkbox("PM2.5", value=True, key=7)
+        with pm10_col:
+            is_pm10 = st.checkbox("PM10", value=True, key=8)
+        if is_pm2_5 or is_pm10:
+            pm2_5_var = "PM2.5" if is_pm2_5 else ""
+            pm10_var = "PM10" if is_pm10 else ""
+            plot_avg_aqi(selected_period)
+        else:
+            st.warning("Silakan pilih minimal satu variabel untuk ditampilkan")
     else:
-        st.warning("Silakan pilih minimal satu variabel untuk ditampilkan")
+        st.warning("Silakan pilih rentang waktu pada semua periode.")
