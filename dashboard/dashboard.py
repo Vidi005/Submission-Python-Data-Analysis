@@ -17,6 +17,7 @@ def create_avg_aqi_df(df, period):
     }, inplace=True)
     return avg_aqi_df
 
+
 def create_aqi_stats_df(df):
     aqi_stats_df = df.groupby(by="date_time").agg({
         "pm2_5": ["min", "max", "mean"],
@@ -134,8 +135,29 @@ def create_agg_df(df, period):
     }, inplace=True)
     return agg_df
 
-def set_checkbox_var(position): return str(all_df.groupby(
-    by="annually_period")["annually_period"].nunique().index[position])
+def create_agg_stats_df(df):
+    agg_stats_df = df.groupby(by="date_time").agg({
+        "so2": "mean",
+        "no2": "mean",
+        "co": "mean"
+    })
+    agg_stats_df = agg_stats_df.reset_index()
+    agg_stats_df.rename(columns={
+        "so2": "so2_stats",
+        "no2": "no2_stats",
+        "co": "co_stats"
+    }, inplace=True)
+    return agg_stats_df
+
+def set_checkbox_var(position):
+    return str(all_df.groupby(
+        by="annually_period")["annually_period"].nunique().index[position])
+
+def set_district_var():
+    all_district = ["Semua Distrik"]
+    district_selection = all_df.groupby(
+        by="station")["station"].nunique().sort_values().index.tolist()
+    return all_district + district_selection
 
 all_df = pd.read_csv("dashboard/main_data.csv")
 all_df["date_time"] = pd.to_datetime(all_df["date_time"])
@@ -144,22 +166,25 @@ min_date = all_df["date_time"].min()
 max_date = all_df["date_time"].max()
 annual_periods = []
 annual_period_count = all_df["annually_period"].nunique()
+district = "Semua Distrik"
+districts_count = all_df["station"].nunique()
+all_district_df = all_df
 start_date = min_date
 end_date = max_date
 
 with st.sidebar:
+    st.image("dashboard/aqi-logo.png")
     st.caption("Filter Data Berdasarkan:")
     period = st.selectbox(
         label="Pilih Periode",
         options=["Seluruh Periode (2013-2017)",
-                 "Rentang Waktu Tertentu", "Tahunan"],
+                 "Rentang Waktu Tertentu", "Tahunan"]
     )
     if period == "Seluruh Periode (2013-2017)":
         annual_periods = ["", ""]
-        min_date = all_df["date_time"].min()
-        max_date = all_df["date_time"].max()
         main_df = all_df[(all_df["date_time"] >= min_date) &
                          (all_df["date_time"] <= max_date)]
+        all_district_df = main_df
     elif period == "Rentang Waktu Tertentu":
         annual_periods = ["", ""]
         selected_date_range = st.date_input(
@@ -176,6 +201,7 @@ with st.sidebar:
             st.warning("Silahkan pilih rentang waktu yang valid.")
             main_df = all_df[(all_df["date_time"] >= min_date)
                              & (all_df["date_time"] <= max_date)]
+        all_district_df = main_df
     else:
         annual_periods = []
         for i in range(annual_period_count):
@@ -193,6 +219,16 @@ with st.sidebar:
                 annual_periods)-1].split(" - ")[1].replace(")", "")
             main_df = all_df[all_df["annually_period"].astype(
                 str).str.contains("|".join(annual_periods))]
+        all_district_df = main_df
+    district = st.selectbox(
+        label="Pilih Distrik",
+        options=set_district_var(),
+        key=0
+    )
+    if district != "Semua Distrik":
+        main_df = main_df[main_df["station"] == district]
+    else:
+        main_df = all_district_df
 
 st.title("Air Quality Dashboard")
 st.header("Air Quality Index (AQI) in Districs of Tiongkok")
@@ -326,7 +362,7 @@ with monthly_tab:
             pm10_var = "PM10" if is_pm10 else ""
             plot_avg_aqi(selected_period)
         else:
-            st.warning("Silakan pilih minimal satu variabel untuk ditampilkan")
+            st.warning("Silakan pilih minimal satu variabel untuk ditampilkan.")
     else:
         st.warning("Silakan pilih rentang waktu minimal satu caturwulan.")
 with quarterly_tab:
@@ -346,7 +382,7 @@ with quarterly_tab:
             pm10_var = "PM10" if is_pm10 else ""
             plot_avg_aqi(selected_period)
         else:
-            st.warning("Silakan pilih minimal satu variabel untuk ditampilkan")
+            st.warning("Silakan pilih minimal satu variabel untuk ditampilkan.")
     else:
         st.warning("Silakan pilih rentang waktu minimal satu tahun.")
 with semester_tab:
@@ -364,7 +400,7 @@ with semester_tab:
             pm10_var = "PM10" if is_pm10 else ""
             plot_avg_aqi(selected_period)
         else:
-            st.warning("Silakan pilih minimal satu variabel untuk ditampilkan")
+            st.warning("Silakan pilih minimal satu variabel untuk ditampilkan.")
     else:
         st.warning("Silakan pilih rentang waktu pada semua periode.")
 
@@ -372,8 +408,8 @@ st.subheader("Best & Worst AQI in Tiongkok Districs")
 st.markdown("* #### Best & Worst AQI by Average of PM2.5 Parameter")
 colors = ["yellow", "lightgrey", "lightgrey",
           "lightgrey", "lightgrey", "green"]
-if main_df.empty:
-    st.warning("Tidak ada data untuk ditampilkan.")
+if main_df.empty or district != "Semua Distrik":
+    st.warning("Tidak ada data untuk ditampilkan. Silakan pilih semua distrik.")
 else:
     fig, ax = plt.subplots(nrows=1, ncols=2, figsize=(20, 8))
     sns.barplot(
@@ -401,8 +437,8 @@ else:
     st.pyplot(fig)
 
 st.markdown("* #### Best & Worst AQI by Average of PM10 Parameter")
-if main_df.empty:
-    st.warning("Tidak ada data untuk ditampilkan.")
+if main_df.empty or district != "Semua Distrik":
+    st.warning("Tidak ada data untuk ditampilkan. Silakan pilih semua distrik.")
 else:
     fig, ax = plt.subplots(nrows=1, ncols=2, figsize=(20, 8))
     sns.barplot(
@@ -478,7 +514,7 @@ if len(daily_date_periods) > 6:
         pm10_var = "PM10" if is_pm10 else ""
         plot_daily_avg_aqi()
     else:
-        st.warning("Silakan pilih minimal satu variabel untuk ditampilkan")
+        st.warning("Silakan pilih minimal satu variabel untuk ditampilkan.")
 else:
     st.warning("Silakan pilih rentang waktu minimal seminggu.")
 
@@ -531,7 +567,7 @@ if len(daily_date_periods) > 0:
         pm10_var = "PM10" if is_pm10 else ""
         plot_hourly_avg_aqi()
     else:
-        st.warning("Silakan pilih minimal satu variabel untuk ditampilkan")
+        st.warning("Silakan pilih minimal satu variabel untuk ditampilkan.")
 else:
     st.warning("Silakan pilih rentang waktu minimal satu hari.")
 
@@ -583,6 +619,18 @@ else:
     st.pyplot(fig)
 
 st.subheader("Comparing PM2.5, PM10, SO₂, NO₂, and CO Correlation")
+
+avg_so2_col, avg_no2_col, avg_co_col = st.columns(3)
+with avg_so2_col:
+    avg_so2 = create_agg_stats_df(main_df).so2_stats.mean()
+    st.metric("Average SO₂ (μg/m³)", value=round(avg_so2, 2))
+with avg_no2_col:
+    avg_no2 = create_agg_stats_df(main_df).no2_stats.mean()
+    st.metric("Average NO₂ (μg/m³)", value=round(avg_no2, 2))
+with avg_co_col:
+    avg_co = create_agg_stats_df(main_df).co_stats.mean()
+    st.metric("Average CO (μg/m³)", value=round(avg_co, 2))
+
 weekly_tab, monthly_tab, quarterly_tab, semester_tab = st.tabs(
     ["Weekly", "Monthly", "Quarterly", "Semester"],
 )
@@ -593,6 +641,7 @@ def plot_agg(period):
         st.warning("Tidak ada data untuk ditampilkan.")
         return
     fig, ax0 = plt.subplots(figsize=(15, 10))
+    plt.grid(zorder=0)
     plt.plot(
         create_agg_df(main_df, period).date_time,
         create_agg_df(main_df, period).avg_pm2_5,
