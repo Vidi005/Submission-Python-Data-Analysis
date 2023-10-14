@@ -120,6 +120,10 @@ def create_agg_df(df, period):
         "no2": "mean",
         "co": "mean",
     })
+    if period == "M" and len(annual_periods) < 2:
+        agg_df.index = agg_df.index.strftime('%b')
+    else:
+        agg_df.index = agg_df.index.strftime('%Y-%m-%d')
     agg_df = agg_df.reset_index()
     agg_df.rename(columns={
         "pm2_5": "avg_pm2_5",
@@ -366,8 +370,8 @@ with semester_tab:
 
 st.subheader("Best & Worst AQI in Tiongkok Districs")
 st.markdown("* #### Best & Worst AQI by Average of PM2.5 Parameter")
-colors = ["darkorange", "lightgrey", "lightgrey",
-            "lightgrey", "lightgrey", "green"]
+colors = ["yellow", "lightgrey", "lightgrey",
+          "lightgrey", "lightgrey", "green"]
 if main_df.empty:
     st.warning("Tidak ada data untuk ditampilkan.")
 else:
@@ -427,6 +431,7 @@ else:
 
 st.subheader("Best & Worst Time AQI by PM2.5 & PM10")
 st.markdown("* #### Best & Worst AQI Time per-Day")
+
 def plot_daily_avg_aqi():
     if main_df.empty:
         st.warning("Tidak ada data untuk ditampilkan.")
@@ -461,7 +466,7 @@ def plot_daily_avg_aqi():
     st.pyplot(fig)
 
 daily_date_periods = pd.period_range(
-        str(start_date), str(end_date), freq="D")
+    str(start_date), str(end_date), freq="D")
 if len(daily_date_periods) > 6:
     pm2_5_col, pm10_col = st.columns(2)
     with pm2_5_col:
@@ -477,7 +482,8 @@ if len(daily_date_periods) > 6:
 else:
     st.warning("Silakan pilih rentang waktu minimal seminggu.")
 
-st.markdown("* #### Best & Worst AQI Time by per-Hour")
+st.markdown("* #### Best & Worst AQI Time per-Hour")
+
 def plot_hourly_avg_aqi():
     if main_df.empty:
         st.warning("Tidak ada data untuk ditampilkan.")
@@ -513,7 +519,7 @@ def plot_hourly_avg_aqi():
     st.pyplot(fig)
 
 daily_date_periods = pd.period_range(
-        str(start_date), str(end_date), freq="D")
+    str(start_date), str(end_date), freq="D")
 if len(daily_date_periods) > 0:
     pm2_5_col, pm10_col = st.columns(2)
     with pm2_5_col:
@@ -530,8 +536,151 @@ else:
     st.warning("Silakan pilih rentang waktu minimal satu hari.")
 
 st.subheader("AQI Demographics")
-st.markdown("* #### PM2.5 Demographic")
+st.markdown("* #### Number of AQI Categories by PM2.5")
 
-st.markdown("* #### PM10 Demographic")
+def set_custom_palette(counts, colors):
+    palettes = []
+    for count in counts:
+        if count < counts.max():
+            palettes.append(colors[0])
+        else:
+            palettes.append(colors[1])
+    return palettes
 
-st.subheader("PM2.5, PM10, SO₂, NO₂, and CO Concentration")
+if main_df.empty:
+    st.warning("Tidak ada data untuk ditampilkan.")
+else:
+    color_list = ["lightgrey", "brown"]
+    fig, ax = plt.subplots(figsize=(15, 5))
+    sns.barplot(
+        y="aqi_by_pm2_5_count",
+        x="aqi_by_pm2_5",
+        data=create_aqi_by_pm2_5_df(main_df),
+        palette=set_custom_palette(create_aqi_by_pm2_5_df(main_df)[
+                                   "aqi_by_pm2_5_count"], color_list)
+    )
+    plt.title("Number of AQI Categories by PM2.5", fontsize=20)
+    plt.xlabel("Categories", fontsize=15)
+    plt.ylabel(None)  # type: ignore
+    st.pyplot(fig)
+
+st.markdown("* #### Number of AQI Categories by PM10")
+if main_df.empty:
+    st.warning("Tidak ada data untuk ditampilkan.")
+else:
+    color_list = ["lightgrey", "orange"]
+    fig, ax = plt.subplots(figsize=(10, 5))
+    sns.barplot(
+        y="aqi_by_pm10_count",
+        x="aqi_by_pm10",
+        data=create_aqi_by_pm10_df(main_df),
+        palette=set_custom_palette(create_aqi_by_pm10_df(main_df)[
+                                   "aqi_by_pm10_count"], color_list)
+    )
+    plt.title("Number of AQI Categories by PM10", fontsize=20)
+    plt.xlabel("Categories", fontsize=14)
+    plt.ylabel(None)  # type: ignore
+    st.pyplot(fig)
+
+st.subheader("Comparing PM2.5, PM10, SO₂, NO₂, and CO Correlation")
+weekly_tab, monthly_tab, quarterly_tab, semester_tab = st.tabs(
+    ["Weekly", "Monthly", "Quarterly", "Semester"],
+)
+period_plt_title = "per-Week"
+
+def plot_agg(period):
+    if main_df.empty:
+        st.warning("Tidak ada data untuk ditampilkan.")
+        return
+    fig, ax0 = plt.subplots(figsize=(15, 10))
+    plt.plot(
+        create_agg_df(main_df, period).date_time,
+        create_agg_df(main_df, period).avg_pm2_5,
+        label='PM2.5',
+        color='blue',
+        linewidth=3,
+        marker='o'
+    )
+    plt.plot(
+        create_agg_df(main_df, period).date_time,
+        create_agg_df(main_df, period).avg_pm10,
+        label='PM10',
+        color='orange',
+        linewidth=3,
+        marker='o'
+    )
+    plt.plot(
+        create_agg_df(main_df, period).date_time,
+        create_agg_df(main_df, period).avg_so2,
+        label='SO₂',
+        color='green',
+        linestyle=':',
+        linewidth=2,
+        marker='o'
+    )
+    plt.plot(
+        create_agg_df(main_df, period).date_time,
+        create_agg_df(main_df, period).avg_no2,
+        label='NO₂',
+        color='red',
+        linestyle='--',
+        linewidth=2,
+        marker='o'
+    )
+    plt.ylabel("Concentration PM2.5, PM10, SO₂, NO₂ (μg/m³)", fontsize=12)
+    ax1 = ax0.twinx()
+    ax1.plot(
+        create_agg_df(main_df, period).date_time,
+        create_agg_df(main_df, period).avg_co,
+        label='CO',
+        color='purple',
+        linestyle='-.',
+        marker='o'
+    )
+    ax1.yaxis.tick_right()
+    ax1.set_ylabel("Concentration CO (μg/m³)",
+                   size=12, rotation=270, labelpad=20)
+    ax1.set_xlabel(None)
+    lines1, labels1 = ax0.get_legend_handles_labels()
+    lines2, labels2 = ax1.get_legend_handles_labels()
+    lines = lines1 + lines2
+    labels = labels1 + labels2
+    plt.legend(lines, labels)
+    plt.title(
+        f'Correlation Belong PM2.5, PM10, SO₂, NO₂, and CO {period_plt_title}', fontsize=18)
+    st.pyplot(fig)
+
+with weekly_tab:
+    daily_date_periods = pd.period_range(
+        str(start_date), str(end_date), freq="M")
+    if len(daily_date_periods) > 0:
+        st.subheader("Weekly")
+        period_plt_title = "per-Week"
+        plot_agg("W")
+    else:
+        st.warning("Silakan pilih rentang waktu minimal satu bulan.")
+with monthly_tab:
+    monthly_date_periods = pd.period_range(
+        str(start_date), str(end_date), freq="M")
+    if len(monthly_date_periods) > 3:
+        st.subheader("Monthly")
+        period_plt_title = "per-Month"
+        plot_agg("M")
+    else:
+        st.warning("Silakan pilih rentang waktu minimal satu caturwulan.")
+with quarterly_tab:
+    quarterly_date_periods = pd.period_range(
+        str(start_date), str(end_date), freq="Q")
+    if len(quarterly_date_periods) > 3:
+        st.subheader("Quarterly")
+        period_plt_title = "per-Quartal"
+        plot_agg("Q")
+    else:
+        st.warning("Silakan pilih rentang waktu minimal satu tahun.")
+with semester_tab:
+    if pd.to_datetime(end_date) - pd.to_datetime(start_date) >= max_date - min_date - timedelta(days=1):
+        st.subheader("Semester")
+        period_plt_title = "per-Semester"
+        plot_agg("6M")
+    else:
+        st.warning("Silakan pilih rentang waktu pada semua periode.")
