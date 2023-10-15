@@ -27,7 +27,7 @@ https://github.com/Vidi005/Submission-Python-Data-Analysis/blob/master/screensho
 ```
 <p align="center">
     <img src="https://github.com/Vidi005/Submission-Python-Data-Analysis/blob/master/screenshots/Streamlit%20App%20Screenshot.png" width="100%" />
-    <img src="https://github.com/Vidi005/Submission-Python-Data-Analysis/blob/master/screenshots/Full%20Page%20App%20Screenshot.png" width="100%" />
+    <img src="https://github.com/Vidi005/Submission-Python-Data-Analysis/blob/master/screenshots/Full%20Page%20Screenshot.png" width="100%" />
 </p>
 
 ### App Videos
