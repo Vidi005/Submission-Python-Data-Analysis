@@ -17,7 +17,6 @@ def create_avg_aqi_df(df, period):
     }, inplace=True)
     return avg_aqi_df
 
-
 def create_aqi_stats_df(df):
     aqi_stats_df = df.groupby(by="date_time").agg({
         "pm2_5": ["min", "max", "mean"],
@@ -110,7 +109,7 @@ def create_aqi_by_pm10_df(df):
                   "Very Unhealthy", "Hazardous"]
     aqi_by_pm10_df["aqi_by_pm10"] = pd.Categorical(
         aqi_by_pm10_df["aqi_by_pm10"], categories=categories, ordered=True)
-    aqi_by_pm10_df.sort_values(by="aqi_by_pm10").reset_index(drop=True)
+    aqi_by_pm10_df.sort_values(by="aqi_by_pm10")
     return aqi_by_pm10_df
 
 def create_agg_df(df, period):
@@ -575,12 +574,9 @@ st.subheader("AQI Demographics")
 st.markdown("* #### Number of AQI Categories by PM2.5")
 
 def set_custom_palette(counts, colors):
-    palettes = []
-    for count in counts:
-        if count < counts.max():
-            palettes.append(colors[0])
-        else:
-            palettes.append(colors[1])
+    max_count = counts.max()
+    palettes = [colors[1] if count == max_count else colors[0]
+                for count in counts]
     return palettes
 
 if main_df.empty:
@@ -592,13 +588,15 @@ else:
         y="aqi_by_pm2_5_count",
         x="aqi_by_pm2_5",
         data=create_aqi_by_pm2_5_df(main_df),
-        palette=set_custom_palette(create_aqi_by_pm2_5_df(main_df)[
+        palette=set_custom_palette(create_aqi_by_pm2_5_df(main_df).sort_values(by="aqi_by_pm2_5")[
                                    "aqi_by_pm2_5_count"], color_list)
     )
     plt.title("Number of AQI Categories by PM2.5", fontsize=20)
     plt.xlabel("Categories", fontsize=15)
     plt.ylabel(None)  # type: ignore
     st.pyplot(fig)
+    print(create_aqi_by_pm2_5_df(main_df)[
+          "aqi_by_pm2_5_count"])
 
 st.markdown("* #### Number of AQI Categories by PM10")
 if main_df.empty:
@@ -610,7 +608,7 @@ else:
         y="aqi_by_pm10_count",
         x="aqi_by_pm10",
         data=create_aqi_by_pm10_df(main_df),
-        palette=set_custom_palette(create_aqi_by_pm10_df(main_df)[
+        palette=set_custom_palette(create_aqi_by_pm10_df(main_df).sort_values(by="aqi_by_pm10")[
                                    "aqi_by_pm10_count"], color_list)
     )
     plt.title("Number of AQI Categories by PM10", fontsize=20)
@@ -677,6 +675,7 @@ def plot_agg(period):
         marker='o'
     )
     plt.ylabel("Concentration PM2.5, PM10, SO₂, NO₂ (μg/m³)", fontsize=12)
+    plt.xticks(rotation=45)
     ax1 = ax0.twinx()
     ax1.plot(
         create_agg_df(main_df, period).date_time,
