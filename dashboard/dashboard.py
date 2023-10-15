@@ -595,8 +595,6 @@ else:
     plt.xlabel("Categories", fontsize=15)
     plt.ylabel(None)  # type: ignore
     st.pyplot(fig)
-    print(create_aqi_by_pm2_5_df(main_df)[
-          "aqi_by_pm2_5_count"])
 
 st.markdown("* #### Number of AQI Categories by PM10")
 if main_df.empty:
