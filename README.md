@@ -12,3 +12,24 @@ pip install numpy pandas matplotlib seaborn jupyter streamlit
 streamlit run dashboard/dashboard.py
 ```
 
+## Deployed Streamlit App
+### App URL
+```
+https://air-quality-data-analysis.streamlit.app/
+
+```
+### App Screenshots
+```
+https://github.com/Vidi005/Submission-Python-Data-Analysis/blob/master/screenshots/Streamlit-App-Screenshot.png
+```
+```
+https://github.com/Vidi005/Submission-Python-Data-Analysis/blob/master/screenshots/Full-Page-App-Screenshot.png
+```
+<div align="center">
+    <img src="https://github.com/Vidi005/Submission-Python-Data-Analysis/blob/master/screenshots/Streamlit-App-Screenshot.png" width="100%" />
+    <img src="https://github.com/Vidi005/Submission-Python-Data-Analysis/blob/master/screenshots/Full-Page-App-Screenshot.png" width="100%" />
+</div>
+### App Videos
+```
+https://github.com/Vidi005/Submission-Python-Data-Analysis/blob/master/videos/Streamlit-App-Video.mp4
+```
